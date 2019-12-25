@@ -26,6 +26,3 @@ if __name__ == '__main__':
 	for i in range(num_test_cases):
 		test_case = gen_test_case(batch_num, max_label_length, max_input_length, output_vocab_size)
 		np.save('test_case_{}.npy'.format(i), test_case)
-
-
-	
