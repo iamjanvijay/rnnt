@@ -2,11 +2,14 @@ import warprnnt_tensorflow
 import numpy as np
 import tensorflow as tf
 
+
 def gen_test_case(batch_num, max_label_length, max_input_length, output_vocab_size):
 	# Inputs
-	label_lengths = np.random.randint(low=1, high=max_label_length+1, size=(batch_num))
+	# label_lengths = np.random.randint(low=1, high=max_label_length+1, size=(batch_num))
+	label_lengths = np.asarray([max_label_length] * batch_num)
 	blank_label = 0 # assuming zero for now; np.random.randint(low=0, high=output_vocab_size+1, size=())
-	input_lengths = np.random.randint(low=1, high=max_input_length+1, size=(batch_num))
+	# input_lengths = np.random.randint(low=1, high=max_input_length+1, size=(batch_num))
+	input_lengths = np.asarray([max_input_length] * batch_num)
 	labels = np.random.randint(low=1, high=output_vocab_size+1, size=(batch_num, max_label_length))
 	acts = np.random.rand(batch_num, max_input_length, max_label_length+1, output_vocab_size+1).astype(np.float32)
 	log_probs = tf.nn.log_softmax(acts, axis=3)
@@ -14,8 +17,9 @@ def gen_test_case(batch_num, max_label_length, max_input_length, output_vocab_si
 	# Outputs
 	final_loss = warprnnt_tensorflow.rnnt_loss(log_probs, labels, input_lengths, label_lengths, blank_label)
 	
-	return {'acts': acts, 'log_probs': log_probs.numpy, 'labels': labels, 'input_lengths': input_lengths, 'label_lengths': label_lengths, 'blank_label': blank_label, 'final_loss': final_loss.numpy}
-	
+	return {'acts': acts, 'log_probs': log_probs.numpy, 'labels': labels, 'input_lengths': input_lengths, 'label_lengths': label_lengths, 'blank_label': blank_label, 'final_loss': final_loss.numpy()}
+
+
 if __name__ == '__main__':
 	batch_num = 1
 	max_label_length = 5
