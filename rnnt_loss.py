@@ -51,4 +51,10 @@ def rnnt_loss_and_grad(logits, labels, label_length, logit_length):
     fwd = tf.scan(next_state, trans_probs_diags, initializer=initial_alpha)
     alpha = tf.transpose(tf.concat([tf.expand_dims(initial_alpha, axis=0), fwd], axis=0), perm=[1, 2, 0])
 
-    return -alpha[:, -1, -1]
+    alpha_i = tf.stack([logit_length - 1, logit_length + label_length - 1], axis=1)
+    blank_i = tf.stack([logit_length - 1, label_length], axis=1)
+
+    final_state_probs = tf.gather_nd(alpha, alpha_i, batch_dims=1) + tf.gather_nd(blank_probs, blank_i, batch_dims=1)
+
+    loss = -final_state_probs
+    return loss
