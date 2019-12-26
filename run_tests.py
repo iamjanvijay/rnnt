@@ -18,7 +18,8 @@ if __name__ == '__main__':
         label_lengths = tf.convert_to_tensor(data['label_lengths'])
         logit_lengths = tf.convert_to_tensor(data['input_lengths'])
         true_loss = np.array(data['final_loss'])
-        pred_loss = np.array(rnnt_loss_and_grad(logits, labels, label_lengths, logit_lengths))
+        pred_loss, _ = rnnt_loss_and_grad(logits, labels, label_lengths, logit_lengths)
+        pred_loss = pred_loss.numpy()
         passed[i] = (np.sum(np.abs(true_loss - pred_loss)) < EPS)
 
     print(passed)
