@@ -65,14 +65,14 @@ def backward_dp(bp_diags, tp_diags, batch_size, input_max_len, target_max_len, l
         :return: backward variable beta with shape batch_size x input_max_len x target_max_len
     """
 
-    def next_state(beta, mask_and_trans_probs):
-        mask, blank_probs, truth_probs = mask_and_trans_probs
+    def next_state(x, mask_and_trans_probs):
+        mask_s, blank_probs_s, truth_probs = mask_and_trans_probs
 
-        beta_b = tf.concat([beta[:, 1:] + blank_probs, LOG_0*tf.ones(shape=[batch_size, 1])], axis=1)
-        beta_t = tf.concat([beta[:, :-1] + truth_probs, LOG_0*tf.ones(shape=[batch_size, 1])], axis=1)
+        beta_b = tf.concat([x[:, 1:] + blank_probs_s, LOG_0 * tf.ones(shape=[batch_size, 1])], axis=1)
+        beta_t = tf.concat([x[:, :-1] + truth_probs, LOG_0 * tf.ones(shape=[batch_size, 1])], axis=1)
 
         beta_next = tf.reduce_logsumexp(tf.stack([beta_b, beta_t], axis=0), axis=0)
-        masked_beta_next = beta_next * tf.expand_dims(mask, axis=1) + beta * tf.expand_dims((1.0 - mask), axis=1)
+        masked_beta_next = beta_next * tf.expand_dims(mask_s, axis=1) + x * tf.expand_dims((1.0 - mask_s), axis=1)
         return masked_beta_next
 
     # Initial beta for batches.
@@ -112,34 +112,45 @@ def rnnt_loss_and_grad(logits, labels, label_length, logit_length):
         label_length + 1, maxlen=target_max_len, dtype=tf.float32), axis=1)
     input_mask = tf.expand_dims(tf.sequence_mask(
         logit_length, maxlen=input_max_len, dtype=tf.float32), axis=2)
+
     mask = label_mask * input_mask
+    mask_log_values = (1-mask) * LOG_0
 
-    alpha = forward_dp(bp_diags, tp_diags, batch_size, input_max_len, target_max_len) * mask
-
-    indices = tf.stack([logit_length - 1, label_length], axis=1)
-    blank_sl = tf.gather_nd(blank_probs, indices, batch_dims=1)
-    final_state_probs = tf.gather_nd(alpha, indices, batch_dims=1) + blank_sl
-
-    beta = backward_dp(bp_diags, tp_diags, batch_size, input_max_len, target_max_len, label_length, logit_length, blank_probs) * mask
+    alpha = forward_dp(bp_diags, tp_diags, batch_size, input_max_len, target_max_len) * mask + mask_log_values
+    beta = backward_dp(bp_diags, tp_diags, batch_size, input_max_len, target_max_len, label_length, logit_length, blank_probs) * mask + mask_log_values
+    final_state_probs = beta[:, 0, 0]
 
     tiled_fsp = tf.tile(
-        tf.reshape(final_state_probs, shape=[batch_size, 1, 1]), multiples=[1, input_max_len, target_max_len])
+        tf.reshape(final_state_probs, shape=[batch_size, 1, 1]), multiples=[1, input_max_len, target_max_len]) * mask + mask_log_values
 
-    grads_truth = alpha[:, :, :-1] + beta[:, :, 1:] + truth_probs + tf.math.log(1 - tf.exp(truth_probs)) \
-        - tiled_fsp[:, :, :-1]
-    grads_truth = tf.exp(grads_truth) * mask[:, :, 1:]
+    sl_indices = tf.stack([tf.range(0, batch_size, dtype=tf.int64), logit_length-1, label_length], axis=1)
+    sl_one_hot = tf.scatter_nd(sl_indices, tf.ones(shape=batch_size), shape=alpha.shape)
 
-    grads_blank = alpha[:, :-1, :] + beta[:, 1:, :] + blank_probs[:, :-1, :]\
-        + tf.math.log(1 - tf.exp(blank_probs[:, :-1, :])) - tiled_fsp[:, :-1, :]
-    grads_blank = tf.concat([tf.exp(grads_blank) * mask[:, 1:, :],
-                             tf.zeros(shape=[batch_size, 1, target_max_len])], axis=1)
-    grads_blank += tf.scatter_nd(tf.stack([tf.range(0, batch_size, dtype=tf.int64),
-                                           logit_length - 1, label_length], axis=1), 1 - tf.exp(blank_sl), shape=grads_blank.shape)
+    beta_shifted_u = tf.concat([beta[:, :, 1:], tf.ones(shape=[batch_size, input_max_len, 1])*LOG_0], axis=2)
+    beta_shifted_t = tf.concat([beta[:, 1:, :], tf.ones(shape=[batch_size, 1, target_max_len])*LOG_0], axis=1)
+    beta_shifted_t -= sl_one_hot * LOG_0
 
-    grads_logits = (tf.expand_dims(grads_truth, axis=-1) * one_hot_labels)[:, :, :, 1:]
-    grads_logits = -tf.concat([tf.expand_dims(grads_blank, axis=-1),
-                               tf.concat([grads_logits,
-                                          tf.zeros(shape=[batch_size, input_max_len, 1, vocab_size - 1])], axis=2)], axis=-1)
+    grads_tp = alpha - tiled_fsp + beta_shifted_u
+    grads_bp = alpha - tiled_fsp + beta_shifted_t
 
-    loss = -final_state_probs
-    return loss, grads_logits
+    truth_mask = tf.concat([one_hot_labels, tf.zeros(shape=[batch_size, input_max_len, 1, vocab_size])], axis=2)
+
+    grads_p = tf.ones(shape=log_probs.shape) * LOG_0 * (1-truth_mask) + tf.expand_dims(grads_tp, axis=-1) * truth_mask
+    grads_p = tf.concat([tf.expand_dims(grads_bp, axis=-1), grads_p[:, :, :, 1:]], axis=-1)
+
+    dpp_dlp = blank_probs + tf.math.log(1 - tf.exp(blank_probs))
+    ndpp_dli = tf.expand_dims(blank_probs, axis=-1) + log_probs[:, :, :, 1:]
+
+    expanded_truth_probs = tf.expand_dims(tf.concat([truth_probs, tf.ones(shape=[batch_size, input_max_len, 1])*LOG_0], axis=2), axis=-1)
+
+    dpy_dly = (expanded_truth_probs + tf.math.log(1 - tf.exp(expanded_truth_probs))) * truth_mask
+    ndpy_dli = expanded_truth_probs + log_probs
+
+    dl_dp = -tf.exp(grads_bp + dpp_dlp) + tf.exp(grads_tp + ndpy_dli[:, :, :, 0])
+    dl_dy = (tf.exp(tf.expand_dims(grads_bp, axis=-1) + ndpp_dli) - tf.exp(grads_p[:, :, :, 1:] + dpy_dly[:, :, :, 1:])) * truth_mask[:, :, :, 1:]
+    dl_di = (tf.exp(tf.expand_dims(grads_bp, axis=-1) + ndpp_dli) + tf.exp(tf.expand_dims(grads_tp, axis=-1) + ndpy_dli[:, :, :, 1:])) * (1 - truth_mask[:, :, :, 1:])
+
+    grads = tf.concat([tf.expand_dims(dl_dp, -1), dl_dy + dl_di], axis=-1)
+
+    loss = -beta[:, 0, 0]
+    return loss, grads

@@ -9,7 +9,8 @@ EPS = 0.0001
 
 
 if __name__ == '__main__':
-    passed = {}
+    passed_loss = {}
+    passed_grads = {}
     test_files = glob.glob('test_scripts/test_case*.npy')
     for i in test_files:
         data = np.load(i, allow_pickle=True).item()
@@ -18,8 +19,12 @@ if __name__ == '__main__':
         label_lengths = tf.convert_to_tensor(data['label_lengths'])
         logit_lengths = tf.convert_to_tensor(data['input_lengths'])
         true_loss = np.array(data['final_loss'])
-        pred_loss, _ = rnnt_loss_and_grad(logits, labels, label_lengths, logit_lengths)
+        true_grads = np.array(data['grads'])
+        pred_loss, pred_grads = rnnt_loss_and_grad(logits, labels, label_lengths, logit_lengths)
         pred_loss = pred_loss.numpy()
-        passed[i] = (np.sum(np.abs(true_loss - pred_loss)) < EPS)
+        pred_grads = pred_grads.numpy()
+        passed_loss[i] = (np.sum(np.abs(true_loss - pred_loss)) < EPS)
+        passed_grads[i] = (np.sum(np.abs(true_grads - pred_grads)) < EPS)
 
-    print(passed)
+    print(passed_loss)
+    print(passed_grads)
