@@ -60,7 +60,7 @@ def forward_dp(bp_diags, tp_diags, batch_size, input_max_len, target_max_len):
     return alpha
 
 
-def backward_dp(bp_diags, tp_diags, batch_size, input_max_len, target_max_len, label_length, logit_length, blank_probs):
+def backward_dp(bp_diags, tp_diags, batch_size, input_max_len, target_max_len, label_length, logit_length, blank_sl):
     """
         :return: backward variable beta with shape batch_size x input_max_len x target_max_len
     """
@@ -76,10 +76,8 @@ def backward_dp(bp_diags, tp_diags, batch_size, input_max_len, target_max_len, l
         return masked_beta_next
 
     # Initial beta for batches.
-    final_blank = tf.stack([logit_length - 1, label_length], axis=1)
-    final_blank_probs = tf.gather_nd(blank_probs, final_blank, batch_dims=1)
     initial_beta_mask = tf.one_hot(logit_length-1, depth=input_max_len+1)
-    initial_beta = tf.expand_dims(final_blank_probs, axis=1) * initial_beta_mask + LOG_0 * (1.0 - initial_beta_mask)
+    initial_beta = tf.expand_dims(blank_sl, axis=1) * initial_beta_mask + LOG_0 * (1.0 - initial_beta_mask)
 
     # Mask for scan iterations.
     mask = tf.sequence_mask(logit_length+label_length-1, input_max_len+target_max_len-2, dtype=tf.dtypes.float32)
@@ -120,7 +118,7 @@ def rnnt_loss_and_grad(logits, labels, label_length, logit_length):
     blank_sl = tf.gather_nd(blank_probs, indices, batch_dims=1)
     final_state_probs = tf.gather_nd(alpha, indices, batch_dims=1) + blank_sl
 
-    beta = backward_dp(bp_diags, tp_diags, batch_size, input_max_len, target_max_len, label_length, logit_length, blank_probs) * mask
+    beta = backward_dp(bp_diags, tp_diags, batch_size, input_max_len, target_max_len, label_length, logit_length, blank_sl) * mask
 
     tiled_fsp = tf.tile(
         tf.reshape(final_state_probs, shape=[batch_size, 1, 1]), multiples=[1, input_max_len, target_max_len])
