@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from tensorflow.python.ops.gen_array_ops import matrix_diag_part_v2
 import tensorflow as tf
 
@@ -92,7 +88,7 @@ def backward_dp(bp_diags, tp_diags, batch_size, input_max_len, target_max_len, l
     return beta
 
 
-def rnnt_loss_and_grad(logits, labels, label_length, logit_length):
+def compute_rnnt_loss_and_grad_helper(logits, labels, label_length, logit_length):
     batch_size = logits.shape[0]
     input_max_len = logits.shape[1]
     target_max_len = logits.shape[2]
@@ -155,3 +151,33 @@ def rnnt_loss_and_grad(logits, labels, label_length, logit_length):
 
     loss = -beta[:, 0, 0]
     return loss, grads
+
+
+def rnnt_loss(logits, labels, label_length, logit_length, name=None):
+    name = "rnnt_loss" if name is None else name
+    with tf.name_scope(name):
+        logits = tf.convert_to_tensor(logits, name="logits")
+        labels = tf.convert_to_tensor(labels, name="labels")
+        label_length = tf.convert_to_tensor(label_length, name="label_length")
+        logit_length = tf.convert_to_tensor(logit_length, name="logit_length")
+
+        args = [logits, labels, label_length, logit_length]
+
+        @tf.custom_gradient
+        def compute_rnnt_loss_and_grad(logits_t, labels_t, label_length_t, logit_length_t):
+            """Compute RNN-T loss and gradients."""
+            logits_t.set_shape(logits.shape)
+            labels_t.set_shape(labels.shape)
+            label_length_t.set_shape(label_length.shape)
+            logit_length_t.set_shape(logit_length.shape)
+            kwargs = dict(logits=logits_t, labels=labels_t, label_length=label_length_t, logit_length=logit_length_t)
+            result = compute_rnnt_loss_and_grad_helper(**kwargs)
+
+            def grad(grad_loss):
+                grads = [tf.reshape(grad_loss, [-1, 1, 1, 1]) * result[1]]
+                grads += [None] * (len(args) - len(grads))
+                return grads
+
+            return result[0], grad
+
+        return compute_rnnt_loss_and_grad(*args)
