@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from rnnt_loss import compute_rnnt_loss_and_grad_helper, rnnt_loss
 
-EPS = 0.0001
+EPS = 0.0005
 
 
 def loss_grad_gradtape(logits, labels, label_lengths, logit_lengths):
@@ -33,18 +33,20 @@ if __name__ == '__main__':
 
         # Testing the helper function directly.
         pred_loss, pred_grads = compute_rnnt_loss_and_grad_helper(logits, labels, label_lengths, logit_lengths)
-        hfunc_passed_loss[i] = (np.sum(np.abs(true_loss - pred_loss.numpy())) < EPS)
-        hfunc_passed_grads[i] = (np.sum(np.abs(true_grads - pred_grads.numpy())) < EPS)
+        hfunc_passed_loss[i] = (np.max(np.abs(true_loss - pred_loss.numpy())) < EPS)
+        hfunc_passed_grads[i] = (np.max(np.abs(true_grads - pred_grads.numpy())) < EPS)
 
         # Testing the final function under TF-2.0 Gradient-Tape.
         pred_loss, pred_grads = loss_grad_gradtape(logits, labels, label_lengths, logit_lengths)
-        gtape_passed_loss[i] = (np.sum(np.abs(true_loss - pred_loss.numpy())) < EPS)
-        gtape_passed_grads[i] = (np.sum(np.abs(true_grads - pred_grads.numpy())) < EPS)
+        gtape_passed_loss[i] = (np.max(np.abs(true_loss - pred_loss.numpy())) < EPS)
+        gtape_passed_grads[i] = (np.max(np.abs(true_grads - pred_grads.numpy())) < EPS)
 
     print("Test results for helper function -")
     print(hfunc_passed_loss)
     print(hfunc_passed_grads)
+    print("Passed test cases: {}/{}".format(np.sum(np.array([bool_val for bool_val in hfunc_passed_grads.values()]) & np.array([bool_val for bool_val in hfunc_passed_loss.values()])), len(test_files)))
 
     print("Test results for TF-2.0 Gradient-Tape function -")
     print(gtape_passed_loss)
     print(gtape_passed_grads)
+    print("Passed test cases: {}/{}".format(np.sum(np.array([bool_val for bool_val in gtape_passed_loss.values()]) & np.array([bool_val for bool_val in gtape_passed_grads.values()])), len(test_files)))
