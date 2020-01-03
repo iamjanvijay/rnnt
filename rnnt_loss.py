@@ -1,7 +1,7 @@
 from tensorflow.python.ops.gen_array_ops import matrix_diag_part_v2
 import tensorflow as tf
 
-LOG_0 = -760.0 # TODO : Check how value of LOG_0 affects accuracy of computation of alphas and betas.
+LOG_0 = -5000.0 # TODO : Check how value of LOG_0 affects accuracy of computation of alphas and betas.
 
 
 def extract_diagonals(log_probs):

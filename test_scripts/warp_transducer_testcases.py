@@ -1,7 +1,7 @@
 import warprnnt_tensorflow
 import numpy as np
 import tensorflow as tf
-
+import sys
 
 def gen_test_case(batch_num, max_label_length, max_input_length, output_vocab_size):
 	# Inputs
@@ -27,11 +27,11 @@ def gen_test_case(batch_num, max_label_length, max_input_length, output_vocab_si
 
 
 if __name__ == '__main__':
-	batch_num = 10
-	max_label_length = 5
-	max_input_length = 5
-	output_vocab_size = 3 # Without blank symbol
-	num_test_cases = 10
+	batch_num = int(sys.argv[1])
+	max_label_length = int(sys.argv[3])
+	max_input_length = int(sys.argv[2])
+	output_vocab_size = int(sys.argv[4]) # Without blank symbol
+	num_test_cases = 5
 	
 	for i in range(num_test_cases):
 		test_case = gen_test_case(batch_num, max_label_length, max_input_length, output_vocab_size)
