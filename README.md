@@ -24,8 +24,8 @@ def tf_loss(logits, labels, label_lengths, logit_lengths):
     
 pred_loss, pred_grads = loss_grad_gradtape(logits, labels, label_lengths, logit_lengths)
 ```
-Follwing are the shapes of input parameters for rnnt_loss method - 
-logits - (batch_size, input_time_steps, output_time_steps+1, vocab_size+1)
-labels - (batch_size, output_time_steps)
-label_length - (batch_size) - number of time steps for each output sequence in the minibatch.
+Follwing are the shapes of input parameters for rnnt_loss method - <br>
+logits - (batch_size, input_time_steps, output_time_steps+1, vocab_size+1) <br>
+labels - (batch_size, output_time_steps) <br>
+label_length - (batch_size) - number of time steps for each output sequence in the minibatch. <br>
 logit_length - (batch_size) - number of time steps for each input sequence in the minibatch.
