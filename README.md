@@ -6,7 +6,7 @@ First install the module using pip command.
 ```bash
 pip install rnnt
 ```
-Then use the "rnnt" loss funtion from "rnnt" module, as described below in the example script.
+Then use the "rnnt" loss funtion from "rnnt" module, as described in the sample script: [Sample Train Script](https://github.com/iamjanvijay/rnnt/blob/master/source/sample_train.py)
 ```python
 from rnnt import rnnt_loss
 
@@ -16,11 +16,6 @@ def loss_grad_gradtape(logits, labels, label_lengths, logit_lengths):
         loss = rnnt_loss(logits, labels, label_lengths, logit_lengths)
     grad = g.gradient(loss, logits)
     return loss, grad
-
-@tf.function
-def tf_loss(logits, labels, label_lengths, logit_lengths):
-    loss = rnnt_loss(logits, labels, label_lengths, logit_lengths)
-    return loss
     
 pred_loss, pred_grads = loss_grad_gradtape(logits, labels, label_lengths, logit_lengths)
 ```
