@@ -18,7 +18,7 @@ setuptools.setup(
     url='https://github.com/mejanvijay/rnnt',
     packages=setuptools.find_packages(),
     python_requires=">=3.5",
-    install_requires=['tensorflow==2.0.3', 'numpy==1.18.2'],
+    install_requires=['tensorflow==2.5.1', 'numpy==1.18.2'],
     classifiers=[
         'Programming Language :: Python',
         'Programming Language :: Python :: 3.5',
