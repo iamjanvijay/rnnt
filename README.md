@@ -31,7 +31,7 @@ If you use this code in your research, please cite:
 
 ```bibtex
 @article{singh2020rnnt-loss,
-  title        = {RNN-Loss},
+  title        = {RNNT-Loss},
   author       = {Singh, Janvijay},
   year         = {2020},
   archivePrefix = {arXiv}
