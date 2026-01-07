@@ -24,3 +24,16 @@ logits - (batch_size, input_time_steps, output_time_steps+1, vocab_size+1) <br>
 labels - (batch_size, output_time_steps) <br>
 label_length - (batch_size) - number of time steps for each output sequence in the minibatch. <br>
 logit_length - (batch_size) - number of time steps for each input sequence in the minibatch.
+
+## Citation
+
+If you use this code in your research, please cite:
+
+```bibtex
+@article{singh2020rnnt-loss,
+  title        = {RNN-Loss},
+  author       = {Singh, Janvijay},
+  year         = {2020},
+  archivePrefix = {arXiv}
+}
+```
